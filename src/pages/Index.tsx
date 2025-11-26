@@ -83,6 +83,13 @@ const products: Product[] = [
 const Index = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('Все');
+  const [activeTab, setActiveTab] = useState<'catalog' | 'laser'>('catalog');
+  const [laserParams, setLaserParams] = useState({
+    material: 'steel',
+    thickness: 3,
+    area: 0,
+    complexity: 'simple'
+  });
   const { toast } = useToast();
 
   const categories = ['Все', ...Array.from(new Set(products.map(p => p.category)))];
@@ -129,25 +136,45 @@ const Index = () => {
     setCart([]);
   };
 
+  const calculateLaserPrice = () => {
+    const basePrices: Record<string, number> = {
+      steel: 150,
+      stainless: 250,
+      aluminum: 200
+    };
+    const complexityMultiplier = laserParams.complexity === 'simple' ? 1 : laserParams.complexity === 'medium' ? 1.5 : 2;
+    const thicknessMultiplier = 1 + (laserParams.thickness / 10);
+    return Math.round(basePrices[laserParams.material] * laserParams.area * complexityMultiplier * thicknessMultiplier);
+  };
+
+  const handleLaserOrder = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    toast({
+      title: 'Заявка на лазерную резку отправлена',
+      description: `Стоимость: ${calculateLaserPrice().toLocaleString()} ₽`,
+    });
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-white sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Icon name="Factory" size={32} className="text-primary" />
-            <h1 className="text-2xl font-bold text-primary">МеталлПром</h1>
-          </div>
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="outline" className="relative">
-                <Icon name="ShoppingCart" size={20} />
-                {cart.length > 0 && (
-                  <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center">
-                    {cart.length}
-                  </Badge>
-                )}
-              </Button>
-            </SheetTrigger>
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Icon name="Factory" size={32} className="text-primary" />
+              <h1 className="text-2xl font-bold text-primary">МеталлПром</h1>
+            </div>
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="outline" className="relative">
+                  <Icon name="ShoppingCart" size={20} />
+                  {cart.length > 0 && (
+                    <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center">
+                      {cart.length}
+                    </Badge>
+                  )}
+                </Button>
+              </SheetTrigger>
             <SheetContent className="w-full sm:max-w-lg">
               <SheetHeader>
                 <SheetTitle>Корзина</SheetTitle>
@@ -222,6 +249,23 @@ const Index = () => {
               </div>
             </SheetContent>
           </Sheet>
+          </div>
+          <div className="flex gap-2">
+            <Button 
+              variant={activeTab === 'catalog' ? 'default' : 'outline'}
+              onClick={() => setActiveTab('catalog')}
+            >
+              <Icon name="Package" size={18} className="mr-2" />
+              Каталог
+            </Button>
+            <Button 
+              variant={activeTab === 'laser' ? 'default' : 'outline'}
+              onClick={() => setActiveTab('laser')}
+            >
+              <Icon name="Sparkles" size={18} className="mr-2" />
+              Лазерная резка
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -236,59 +280,248 @@ const Index = () => {
         </div>
       </section>
 
-      <section className="py-12">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-wrap gap-2 mb-8">
-            {categories.map(category => (
-              <Button
-                key={category}
-                variant={selectedCategory === category ? 'default' : 'outline'}
-                onClick={() => setSelectedCategory(category)}
-              >
-                {category}
-              </Button>
-            ))}
-          </div>
+      {activeTab === 'catalog' && (
+        <section className="py-12">
+          <div className="container mx-auto px-4">
+            <div className="flex flex-wrap gap-2 mb-8">
+              {categories.map(category => (
+                <Button
+                  key={category}
+                  variant={selectedCategory === category ? 'default' : 'outline'}
+                  onClick={() => setSelectedCategory(category)}
+                >
+                  {category}
+                </Button>
+              ))}
+            </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredProducts.map(product => (
-              <Card key={product.id} className="hover:shadow-lg transition-shadow">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredProducts.map(product => (
+                <Card key={product.id} className="hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <div className="flex items-start justify-between mb-2">
+                      <Badge variant="secondary">{product.category}</Badge>
+                      <Icon name="Package" className="text-muted-foreground" size={20} />
+                    </div>
+                    <CardTitle className="text-xl">{product.name}</CardTitle>
+                    <CardDescription>{product.description}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-1 mb-4">
+                      {product.specs.map((spec, idx) => (
+                        <li key={idx} className="text-sm text-muted-foreground flex items-center gap-2">
+                          <Icon name="CheckCircle2" size={14} className="text-accent" />
+                          {spec}
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="text-2xl font-bold text-primary">
+                      {product.price.toLocaleString()} ₽
+                      <span className="text-sm font-normal text-muted-foreground">/{product.unit}</span>
+                    </div>
+                  </CardContent>
+                  <CardFooter>
+                    <Button 
+                      className="w-full" 
+                      onClick={() => addToCart(product)}
+                    >
+                      <Icon name="ShoppingCart" size={18} className="mr-2" />
+                      В корзину
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {activeTab === 'laser' && (
+        <section className="py-12">
+          <div className="container mx-auto px-4">
+            <div className="max-w-4xl mx-auto">
+              <div className="text-center mb-8">
+                <h2 className="text-3xl font-bold mb-4">Лазерная резка металла</h2>
+                <p className="text-muted-foreground text-lg">
+                  Высокоточная резка металла на современном оборудовании
+                </p>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-6 mb-8">
+                <Card>
+                  <CardHeader>
+                    <Icon name="Zap" size={32} className="text-accent mb-2" />
+                    <CardTitle>Точность резки</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-muted-foreground">Погрешность не более 0,1 мм</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <Icon name="Layers" size={32} className="text-accent mb-2" />
+                    <CardTitle>Толщина материала</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-muted-foreground">От 0,5 до 20 мм</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <Icon name="Maximize" size={32} className="text-accent mb-2" />
+                    <CardTitle>Размер листа</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-muted-foreground">До 3000×1500 мм</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <Icon name="Clock" size={32} className="text-accent mb-2" />
+                    <CardTitle>Сроки изготовления</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-muted-foreground">От 1 рабочего дня</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card className="mb-8">
                 <CardHeader>
-                  <div className="flex items-start justify-between mb-2">
-                    <Badge variant="secondary">{product.category}</Badge>
-                    <Icon name="Package" className="text-muted-foreground" size={20} />
+                  <CardTitle>Калькулятор стоимости</CardTitle>
+                  <CardDescription>Рассчитайте примерную стоимость резки</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label>Материал</Label>
+                    <div className="flex gap-2 mt-2">
+                      <Button
+                        variant={laserParams.material === 'steel' ? 'default' : 'outline'}
+                        onClick={() => setLaserParams({...laserParams, material: 'steel'})}
+                        className="flex-1"
+                      >
+                        Сталь
+                      </Button>
+                      <Button
+                        variant={laserParams.material === 'stainless' ? 'default' : 'outline'}
+                        onClick={() => setLaserParams({...laserParams, material: 'stainless'})}
+                        className="flex-1"
+                      >
+                        Нержавейка
+                      </Button>
+                      <Button
+                        variant={laserParams.material === 'aluminum' ? 'default' : 'outline'}
+                        onClick={() => setLaserParams({...laserParams, material: 'aluminum'})}
+                        className="flex-1"
+                      >
+                        Алюминий
+                      </Button>
+                    </div>
                   </div>
-                  <CardTitle className="text-xl">{product.name}</CardTitle>
-                  <CardDescription>{product.description}</CardDescription>
+
+                  <div>
+                    <Label htmlFor="thickness">Толщина металла (мм)</Label>
+                    <Input
+                      id="thickness"
+                      type="number"
+                      min="0.5"
+                      max="20"
+                      step="0.5"
+                      value={laserParams.thickness}
+                      onChange={(e) => setLaserParams({...laserParams, thickness: parseFloat(e.target.value)})}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="area">Площадь реза (м²)</Label>
+                    <Input
+                      id="area"
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      value={laserParams.area}
+                      onChange={(e) => setLaserParams({...laserParams, area: parseFloat(e.target.value)})}
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Сложность контура</Label>
+                    <div className="flex gap-2 mt-2">
+                      <Button
+                        variant={laserParams.complexity === 'simple' ? 'default' : 'outline'}
+                        onClick={() => setLaserParams({...laserParams, complexity: 'simple'})}
+                        className="flex-1"
+                      >
+                        Простая
+                      </Button>
+                      <Button
+                        variant={laserParams.complexity === 'medium' ? 'default' : 'outline'}
+                        onClick={() => setLaserParams({...laserParams, complexity: 'medium'})}
+                        className="flex-1"
+                      >
+                        Средняя
+                      </Button>
+                      <Button
+                        variant={laserParams.complexity === 'complex' ? 'default' : 'outline'}
+                        onClick={() => setLaserParams({...laserParams, complexity: 'complex'})}
+                        className="flex-1"
+                      >
+                        Сложная
+                      </Button>
+                    </div>
+                  </div>
+
+                  {laserParams.area > 0 && (
+                    <div className="pt-4 border-t">
+                      <div className="flex justify-between items-center">
+                        <span className="text-lg font-medium">Примерная стоимость:</span>
+                        <span className="text-2xl font-bold text-primary">
+                          {calculateLaserPrice().toLocaleString()} ₽
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Оставить заявку</CardTitle>
+                  <CardDescription>Отправьте чертеж и мы рассчитаем точную стоимость</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <ul className="space-y-1 mb-4">
-                    {product.specs.map((spec, idx) => (
-                      <li key={idx} className="text-sm text-muted-foreground flex items-center gap-2">
-                        <Icon name="CheckCircle2" size={14} className="text-accent" />
-                        {spec}
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="text-2xl font-bold text-primary">
-                    {product.price.toLocaleString()} ₽
-                    <span className="text-sm font-normal text-muted-foreground">/{product.unit}</span>
-                  </div>
+                  <form onSubmit={handleLaserOrder} className="space-y-4">
+                    <div>
+                      <Label htmlFor="laser-name">Имя</Label>
+                      <Input id="laser-name" required placeholder="Иван Иванов" />
+                    </div>
+                    <div>
+                      <Label htmlFor="laser-phone">Телефон</Label>
+                      <Input id="laser-phone" required type="tel" placeholder="+7 (999) 123-45-67" />
+                    </div>
+                    <div>
+                      <Label htmlFor="laser-email">Email</Label>
+                      <Input id="laser-email" required type="email" placeholder="email@example.com" />
+                    </div>
+                    <div>
+                      <Label htmlFor="laser-file">Чертеж (DXF, DWG, PDF)</Label>
+                      <Input id="laser-file" type="file" accept=".dxf,.dwg,.pdf" />
+                    </div>
+                    <div>
+                      <Label htmlFor="laser-comment">Комментарий</Label>
+                      <Textarea id="laser-comment" placeholder="Укажите количество деталей, сроки и другие требования" />
+                    </div>
+                    <Button type="submit" className="w-full">
+                      <Icon name="Send" size={18} className="mr-2" />
+                      Отправить заявку
+                    </Button>
+                  </form>
                 </CardContent>
-                <CardFooter>
-                  <Button 
-                    className="w-full" 
-                    onClick={() => addToCart(product)}
-                  >
-                    <Icon name="ShoppingCart" size={18} className="mr-2" />
-                    В корзину
-                  </Button>
-                </CardFooter>
               </Card>
-            ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       <section className="bg-muted py-12">
         <div className="container mx-auto px-4">
